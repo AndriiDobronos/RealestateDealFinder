@@ -5,5 +5,5 @@
   "type": "module",
   "scripts": { "dev": "vite", "build": "tsc -b && vite build", "preview": "vite preview" },
   "dependencies": { "@vitejs/plugin-react": "latest", "@vercel/node": "latest", "vite": "latest", "typescript": "latest", "react": "latest", "react-dom": "latest", "lucide-react": "latest" },
-  "devDependencies": {}
+  "devDependencies": { "@types/node": "latest", "@types/react": "latest", "@types/react-dom": "latest" }
 }
