@@ -1,4 +1,4 @@
 export type PropertyType = 'secondary' | 'new-build'
-export type Listing = { id: string; title: string; district: string; propertyType: PropertyType; rooms: number; area: number; price: number; floor: string; condition: string; ageDays: number; verified: boolean; image: string; url: string }
+export type Listing = { id: string; title: string; district: string; propertyType: PropertyType; rooms: number; area: number; price: number; currency?: string; floor: string; condition: string; ageDays: number; verified: boolean; image: string; url: string }
 export type SearchProfile = { city: string; rooms: number; minArea: number; maxArea: number; propertyType: 'all' | PropertyType; budget: number }
 export type RankedListing = Listing & { pricePerMeter: number; benchmark: number; adjustedPricePerMeter: number; discount: number; score: number }

@@ -113,6 +113,7 @@ function toListing(item: DimListing, propertyType: 'secondary' | 'new-build') {
     rooms: asNumber(item.rooms_count),
     area,
     price,
+    currency: item.currency_type || 'unknown',
     floor: `${item.floor ?? '?'} / ${item.floors_count ?? '?'}`,
     condition: item.description?.slice(0, 80) || 'Опис відсутній',
     ageDays: dateAge(item.publishing_date),
