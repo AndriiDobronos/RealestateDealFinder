@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
+import stateCatalog from '../state_ID.json' with { type: 'json' }
 
 const DIM_API = 'https://developers.ria.com'
 const MAX_DETAILS = 10
@@ -34,6 +35,15 @@ type DimListing = {
   photos?: Record<string, { file?: string }>
 }
 
+type StateRecord = {
+  stateID: number
+  name?: string
+  region_name?: string
+  center_declension?: string
+  translit?: string
+  eng_name?: string
+}
+
 function requiredEnv(name: string): string {
   const value = process.env[name]
   if (!value) throw new Error(`Не налаштовано змінну середовища ${name}`)
@@ -43,6 +53,38 @@ function requiredEnv(name: string): string {
 function asNumber(value: unknown, fallback = 0): number {
   const parsed = Number(value)
   return Number.isFinite(parsed) ? parsed : fallback
+}
+
+function normalizeCity(value: string): string {
+  return value.trim().toLocaleLowerCase('uk-UA').replace(/[’'`-]/g, '').replace(/\s+/g, ' ')
+}
+
+function resolveLocation(city?: string): { stateId: string; cityId: string; cityName: string } {
+  const requested = normalizeCity(city || 'Харків')
+  const aliases: Record<string, string> = {
+    'харьков': 'харків',
+    'киев': 'київ',
+    'львов': 'львів',
+    'одесса': 'одеса',
+    'днепр': 'дніпро',
+    'запорожье': 'запоріжжя',
+    'винница': 'вінниця',
+    'черновцы': 'чернівці',
+    'чернигов': 'чернігів',
+    'хмельницкий': 'хмельницький',
+    'ивано франковск': 'івано франківськ',
+  }
+  const target = aliases[requested] ?? requested
+  const match = (stateCatalog as StateRecord[]).find((item) => {
+    const candidates = [item.region_name, item.center_declension, item.translit, item.eng_name, item.name]
+    return candidates.some((candidate) => candidate && normalizeCity(candidate) === target)
+  })
+  if (!match) {
+    const available = (stateCatalog as StateRecord[]).map((item) => item.region_name).filter(Boolean).join(', ')
+    throw new Error(`Місто «${city || ''}» не знайдено у state_ID.json. Доступні міста: ${available}`)
+  }
+  const id = String(match.stateID)
+  return { stateId: id, cityId: id, cityName: match.region_name || city || '' }
 }
 
 function dateAge(date?: string): number {
@@ -94,9 +136,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const apiKey = requiredEnv('DIM_RIA_API_KEY')
-    const stateId = requiredEnv('DIM_RIA_STATE_ID')
-    const cityId = requiredEnv('DIM_RIA_CITY_ID')
     const body = (req.body ?? {}) as SearchBody
+    const location = resolveLocation(body.city)
     const rooms = Math.max(1, Math.min(10, asNumber(body.rooms, 2)))
     const minArea = Math.max(1, asNumber(body.minArea, 0))
     const maxArea = Math.max(minArea, asNumber(body.maxArea, 500))
@@ -105,8 +146,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     searchUrl.searchParams.set('category', '1')
     searchUrl.searchParams.set('realty_type', '2')
     searchUrl.searchParams.set('operation_type', '1')
-    searchUrl.searchParams.set('state_id', stateId)
-    searchUrl.searchParams.set('city_id', cityId)
+    searchUrl.searchParams.set('state_id', location.stateId)
+    searchUrl.searchParams.set('city_id', location.cityId)
     searchUrl.searchParams.set('characteristic[209][from]', String(rooms))
     searchUrl.searchParams.set('characteristic[209][to]', String(rooms))
     searchUrl.searchParams.set('characteristic[214][from]', String(minArea))
@@ -122,7 +163,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }))
     const propertyType = body.propertyType === 'new-build' ? 'new-build' : 'secondary'
     const listings = details.map((item) => toListing(item, propertyType)).filter((item) => item.price > 0 && item.area > 0)
-    return res.status(200).json({ source: 'dim-ria', total: search.count ?? listings.length, listings })
+    return res.status(200).json({ source: 'dim-ria', location, total: search.count ?? listings.length, listings })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Невідома помилка сервера'
     const status = message.includes('Не налаштовано') ? 503 : 502

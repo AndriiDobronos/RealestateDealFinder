@@ -19,10 +19,10 @@ function App() {
     setLoading(true)
     try {
       const response = await fetch('/api/search', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(profile) })
-      const payload = await response.json() as { listings?: Listing[]; error?: string }
+      const payload = await response.json() as { listings?: Listing[]; error?: string; location?: { cityName?: string }; total?: number }
       if (!response.ok || !payload.listings) throw new Error(payload.error || 'API недоступний')
       setListings(payload.listings)
-      setApiMessage('DIM.RIA API підключений')
+      setApiMessage(payload.listings.length > 0 ? `DIM.RIA API підключений · ${payload.location?.cityName || profile.city}` : `DIM.RIA: у місті «${payload.location?.cityName || profile.city}» нічого не знайдено`)
       setUpdated('щойно')
     } catch (error) {
       setApiMessage(error instanceof Error ? `${error.message}. Показано demo-дані.` : 'Показано demo-дані.')

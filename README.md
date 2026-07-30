@@ -21,7 +21,7 @@ npm run dev
 
 ## Наступний крок після API key
 
-Server-side API adapter уже доданий у `api/search.ts`. Для локальної роботи скопіюйте `.env.example` у `.env.local` і заповніть ключ та ID області/міста. Для Vercel додайте ці самі змінні в Project Settings → Environment Variables. API key не слід зберігати у frontend-коді — тільки в environment variables серверної функції.
+Server-side API adapter уже доданий у `api/search.ts`. Для локальної роботи скопіюйте `.env.example` у `.env.local` і заповніть API key. Область і місто визначаються автоматично з `state_ID.json` за назвою міста у профілі пошуку. Для Vercel достатньо додати `DIM_RIA_API_KEY` у Project Settings → Environment Variables. API key не слід зберігати у frontend-коді — тільки в environment variables серверної функції.
 
 Адаптер виконує один пошуковий запит DIM.RIA і максимум 10 запитів деталей оголошень. Це важливо для безкоштовного API-ліміту.
 
