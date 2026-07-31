@@ -35,7 +35,7 @@ export function rankListings(listings: Listing[], profile: SearchProfile): Ranke
     const pricePerMeter = listing.price / listing.area
     const currency = normalizeCurrency(listing.currency)
     const currencyBenchmark = medianByCurrency.get(currency) || cityBenchmark
-    const knownBenchmark = currency === 'UAH' ? districtBenchmarks[listing.district] : undefined
+    const knownBenchmark = profile.operation === 'sale' && currency === 'UAH' ? districtBenchmarks[listing.district] : undefined
     const benchmark = knownBenchmark ?? currencyBenchmark
     const districtCoefficient = benchmark / currencyBenchmark
     const adjustedPricePerMeter = pricePerMeter * districtCoefficient

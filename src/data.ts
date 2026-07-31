@@ -1,6 +1,6 @@
 import type { Listing, SearchProfile } from './types'
 
-export const initialProfile: SearchProfile = { city: 'Харків', rooms: 2, minArea: 45, maxArea: 65, propertyType: 'all', budget: 2_500_000 }
+export const initialProfile: SearchProfile = { operation: 'sale', city: 'Харків', rooms: 2, minArea: 45, maxArea: 65, propertyType: 'all', renovation: 'all', budget: 2_500_000 }
 
 export const districtBenchmarks: Record<string, number> = {
   'Салтівський': 30_826,

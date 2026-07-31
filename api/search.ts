@@ -5,12 +5,14 @@ const DIM_API = 'https://developers.ria.com'
 const MAX_DETAILS = 20
 
 type SearchBody = {
+  operation?: 'sale' | 'rent'
   city?: string
   rooms?: number
   minArea?: number
   maxArea?: number
   budget?: number
   propertyType?: 'all' | 'secondary' | 'new-build'
+  renovation?: 'all' | 'with-renovation'
 }
 
 type DimListing = {
@@ -33,6 +35,7 @@ type DimListing = {
   inspected?: number
   main_photo?: string
   photos?: Record<string, { file?: string }>
+  characteristics_values?: Record<string, number | string>
 }
 
 type StateRecord = {
@@ -106,6 +109,7 @@ function toListing(item: DimListing, propertyType: 'secondary' | 'new-build') {
   const area = asNumber(item.total_square_meters)
   const mainPhoto = item.main_photo ?? Object.values(item.photos ?? {})[0]?.file
   const condition = item.description?.slice(0, 300) || 'Опис відсутній'
+  const renovation = item.characteristics_values?.['1479'] ? 'with-renovation' : 'unknown'
   return {
     id: `dim-${id}`,
     title: item.advert_title || `${item.rooms_count ?? ''}-кімнатна квартира`,
@@ -117,6 +121,7 @@ function toListing(item: DimListing, propertyType: 'secondary' | 'new-build') {
     currency: item.currency_type || 'unknown',
     floor: `${item.floor ?? '?'} / ${item.floors_count ?? '?'}`,
     condition,
+    renovation,
     ageDays: dateAge(item.publishing_date),
     verified: item.inspected === 1,
     image: photoUrl(mainPhoto),
@@ -139,6 +144,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const apiKey = requiredEnv('DIM_RIA_API_KEY')
     const body = (req.body ?? {}) as SearchBody
+    const operation = body.operation === 'rent' ? 'rent' : 'sale'
     const location = resolveLocation(body.city)
     const rooms = Math.max(1, Math.min(10, asNumber(body.rooms, 2)))
     const minArea = Math.max(1, asNumber(body.minArea, 0))
@@ -147,13 +153,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     searchUrl.searchParams.set('api_key', apiKey)
     searchUrl.searchParams.set('category', '1')
     searchUrl.searchParams.set('realty_type', '2')
-    searchUrl.searchParams.set('operation_type', '1')
+    searchUrl.searchParams.set('operation_type', operation === 'rent' ? '2' : '1')
     searchUrl.searchParams.set('state_id', location.stateId)
     searchUrl.searchParams.set('city_id', location.cityId)
     searchUrl.searchParams.set('characteristic[209][from]', String(rooms))
     searchUrl.searchParams.set('characteristic[209][to]', String(rooms))
     searchUrl.searchParams.set('characteristic[214][from]', String(minArea))
     searchUrl.searchParams.set('characteristic[214][to]', String(maxArea))
+    if (operation === 'rent' && body.renovation === 'with-renovation') searchUrl.searchParams.set('characteristic[1479]', '1479')
 
     const search = await getJson<{ items?: number[]; count?: number }>(searchUrl)
     const ids = (search.items ?? []).slice(0, MAX_DETAILS)
@@ -164,8 +171,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return getJson<DimListing>(infoUrl)
     }))
     const propertyType = body.propertyType === 'new-build' ? 'new-build' : 'secondary'
-    const listings = details.map((item) => toListing(item, propertyType)).filter((item) => item.price > 0 && item.area > 0)
-    return res.status(200).json({ source: 'dim-ria', location, total: search.count ?? listings.length, listings })
+    const listings = details.map((item) => toListing(item, propertyType)).filter((item) => item.price > 0 && item.area > 0).filter((item) => operation !== 'rent' || body.renovation !== 'with-renovation' || item.renovation === 'with-renovation')
+    return res.status(200).json({ source: 'dim-ria', operation, location, total: search.count ?? listings.length, listings })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Невідома помилка сервера'
     const status = message.includes('Не налаштовано') ? 503 : 502
