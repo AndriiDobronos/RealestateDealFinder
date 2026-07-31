@@ -22,11 +22,13 @@ type DimListing = {
   city_name?: string
   district_name?: string
   realty_type_name?: string
-  rooms_count?: number
-  total_square_meters?: number
-  price_total?: number
-  price?: number
-  price_item?: number
+  rooms_count?: number | string
+  rooms?: number | string
+  total_square_meters?: number | string
+  area?: number | string
+  price_total?: number | string
+  price?: number | string
+  price_item?: number | string
   currency_type?: string
   floor?: number
   floors_count?: number
@@ -105,17 +107,17 @@ function photoUrl(photo?: string): string {
 
 function toListing(item: DimListing, propertyType: 'secondary' | 'new-build') {
   const id = String(item.realty_id ?? '')
-  const price = asNumber(item.price_total ?? item.price)
-  const area = asNumber(item.total_square_meters)
+  const price = asNumber(item.price_total ?? item.price ?? item.price_item)
+  const area = asNumber(item.total_square_meters ?? item.area)
   const mainPhoto = item.main_photo ?? Object.values(item.photos ?? {})[0]?.file
   const condition = item.description?.slice(0, 300) || 'Опис відсутній'
-  const renovation = item.characteristics_values?.['1479'] ? 'with-renovation' : 'unknown'
+  const renovation = Number(item.characteristics_values?.['1479']) > 0 ? 'with-renovation' : 'unknown'
   return {
     id: `dim-${id}`,
     title: item.advert_title || `${item.rooms_count ?? ''}-кімнатна квартира`,
     district: item.district_name || 'Район не вказаний',
     propertyType,
-    rooms: asNumber(item.rooms_count),
+    rooms: asNumber(item.rooms_count ?? item.rooms),
     area,
     price,
     currency: item.currency_type || 'unknown',
@@ -171,7 +173,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return getJson<DimListing>(infoUrl)
     }))
     const propertyType = body.propertyType === 'new-build' ? 'new-build' : 'secondary'
-    const listings = details.map((item) => toListing(item, propertyType)).filter((item) => item.price > 0 && item.area > 0).filter((item) => operation !== 'rent' || body.renovation !== 'with-renovation' || item.renovation === 'with-renovation')
+    // The search endpoint already applies characteristic[1479] for rental listings.
+    // Do not require that characteristic to be repeated by /dom/info: DIM.RIA may omit it there.
+    const listings = details.map((item) => toListing(item, propertyType)).filter((item) => item.price > 0 && item.area > 0)
     return res.status(200).json({ source: 'dim-ria', operation, location, total: search.count ?? listings.length, listings })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Невідома помилка сервера'
