@@ -155,7 +155,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     searchUrl.searchParams.set('api_key', apiKey)
     searchUrl.searchParams.set('category', '1')
     searchUrl.searchParams.set('realty_type', '2')
-    searchUrl.searchParams.set('operation_type', operation === 'rent' ? '2' : '1')
+    searchUrl.searchParams.set('operation_type', operation === 'rent' ? '3' : '1')
     searchUrl.searchParams.set('state_id', location.stateId)
     searchUrl.searchParams.set('city_id', location.cityId)
     if (operation === 'sale') {
@@ -166,19 +166,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const search = await getJson<{ items?: number[]; count?: number }>(searchUrl)
-    let operationTests: Array<{ operationType: string; count: number; error?: string }> = []
-    if (operation === 'rent' && (search.count ?? 0) === 0) {
-      operationTests = await Promise.all(['2', '3', '4'].map(async (operationType) => {
-        const testUrl = new URL(searchUrl)
-        testUrl.searchParams.set('operation_type', operationType)
-        try {
-          const test = await getJson<{ count?: number }>(testUrl)
-          return { operationType, count: test.count ?? 0 }
-        } catch (error) {
-          return { operationType, count: 0, error: error instanceof Error ? error.message : 'test failed' }
-        }
-      }))
-    }
     const ids = (search.items ?? []).slice(0, MAX_DETAILS)
     const detailResults = await Promise.allSettled(ids.map(async (id) => {
       const infoUrl = new URL(`${DIM_API}/dom/info/${id}`)
@@ -192,7 +179,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Do not require that characteristic to be repeated by /dom/info: DIM.RIA may omit it there.
     const listings = details.map((item) => toListing(item, propertyType)).filter((item) => item.price > 0 && item.area > 0)
     const currencyCounts = listings.reduce<Record<string, number>>((counts, listing) => { const currency = listing.currency || 'unknown'; counts[currency] = (counts[currency] || 0) + 1; return counts }, {})
-    return res.status(200).json({ source: 'dim-ria', operation, location, total: search.count ?? listings.length, listings, diagnostics: { searchCount: search.count ?? 0, idsReceived: ids.length, detailsReceived: details.length, validListings: listings.length, detailsFailed: detailResults.length - details.length, currencyCounts, operationTests } })
+    return res.status(200).json({ source: 'dim-ria', operation, location, total: search.count ?? listings.length, listings, diagnostics: { searchCount: search.count ?? 0, idsReceived: ids.length, detailsReceived: details.length, validListings: listings.length, detailsFailed: detailResults.length - details.length, currencyCounts } })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Невідома помилка сервера'
     const status = message.includes('Не налаштовано') ? 503 : 502
