@@ -1,0 +1,10 @@
+.alternative-listing-link { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 14px; padding-top: 11px; border-top: 1px solid #edf1ed; color: #396b4c; font-size: 11px; font-weight: 700; }
+.absolute-card { display: grid; grid-template-columns: 29% 71%; margin-top: 16px; background: #fbfdfb; border: 1px solid #dce8dd; border-radius: 16px; overflow: hidden; }
+.absolute-card-image { min-height: 220px; background-position: center; background-size: cover; position: relative; }
+.absolute-card-image::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, #1f3d2500 48%, #1f3d2570); }
+.absolute-badge { position: absolute; z-index: 1; left: 15px; bottom: 15px; background: #f6fbf5ed; color: #315f46; border-radius: 7px; padding: 8px 10px; font-size: 10px; font-weight: 700; }
+.absolute-card-content { padding: 24px 29px 21px; }
+.absolute-card-heading { display: flex; justify-content: space-between; align-items: start; gap: 20px; }
+.absolute-card-heading strong { color: #315f46; font-size: 21px; white-space: nowrap; }
+.absolute-meta { display: flex; gap: 22px; border-top: 1px solid #e6eee7; margin-top: 18px; padding-top: 13px; color: #718276; font-size: 12px; }
+@media (max-width: 900px) { .absolute-card { grid-template-columns: 1fr; } .absolute-card-image { min-height: 270px; } }
