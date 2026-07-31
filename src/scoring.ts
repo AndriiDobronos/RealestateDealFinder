@@ -7,6 +7,7 @@ export function normalizeCurrency(value?: string): string {
   if (currency === '$' || currency === 'USD' || currency === 'ДОЛ') return 'USD'
   if (currency === '€' || currency === 'EUR') return 'EUR'
   if (currency === 'ГРН' || currency === 'UAH' || currency === '₴') return 'UAH'
+  if (currency.includes('ГРН') || currency.includes('UAH') || currency.includes('₴')) return 'UAH'
   return value || 'unknown'
 }
 
@@ -18,7 +19,7 @@ function median(values: number[]): number {
 }
 
 export function rankListings(listings: Listing[], profile: SearchProfile): RankedListing[] {
-  const candidates = listings.filter((listing) => listing.rooms === profile.rooms).filter((listing) => listing.area >= profile.minArea && listing.area <= profile.maxArea).filter((listing) => profile.propertyType === 'all' || listing.propertyType === profile.propertyType).filter((listing) => listing.price <= profile.budget)
+  const candidates = listings.filter((listing) => profile.operation === 'rent' || listing.rooms === profile.rooms).filter((listing) => profile.operation === 'rent' || (listing.area >= profile.minArea && listing.area <= profile.maxArea)).filter((listing) => profile.operation === 'rent' || profile.propertyType === 'all' || listing.propertyType === profile.propertyType).filter((listing) => profile.operation !== 'rent' || normalizeCurrency(listing.currency) === 'UAH').filter((listing) => listing.price <= profile.budget)
   const pricePerMeter = new Map(candidates.map((listing) => [listing.id, listing.price / listing.area]))
   const medianByCurrency = new Map<string, number>()
   for (const listing of candidates) {
