@@ -29,7 +29,8 @@ function App() {
       if (!response.ok || !payload.listings) throw new Error(payload.error || 'API недоступний')
       setListings(payload.listings)
       const diagnostics = payload.diagnostics
-      setApiMessage(payload.listings.length ? `Офіційний API DIM.RIA · ${payload.location?.cityName || profile.city}` : diagnostics && (diagnostics.idsReceived || 0) > 0 ? `DIM.RIA повернув ${diagnostics.idsReceived || 0} ID, але придатних деталей: ${diagnostics.validListings || 0}` : `DIM.RIA: за цими параметрами оголошень не знайдено`)
+      const rankedCount = rankListings(payload.listings, profile).length
+      setApiMessage(payload.listings.length && rankedCount ? `Офіційний API DIM.RIA · ${payload.location?.cityName || profile.city}` : payload.listings.length ? `DIM.RIA повернув ${payload.listings.length} об'єктів, але поточні фільтри бюджету, площі або кімнат відсіяли всі` : diagnostics && (diagnostics.idsReceived || 0) > 0 ? `DIM.RIA повернув ${diagnostics.idsReceived || 0} ID, але придатних деталей: ${diagnostics.validListings || 0}` : `DIM.RIA: за цими параметрами оголошень не знайдено`)
       setUpdated('щойно')
     } catch (error) { setApiMessage(error instanceof Error ? `${error.message}. Показано demo-дані.` : 'Показано demo-дані.'); setListings(demoListings) } finally { setLoading(false) }
   }
