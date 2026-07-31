@@ -25,10 +25,11 @@ function App() {
     setLoading(true)
     try {
       const response = await fetch('/api/search', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(profile) })
-      const payload = await response.json() as { listings?: Listing[]; error?: string; location?: { cityName?: string } }
+      const payload = await response.json() as { listings?: Listing[]; error?: string; location?: { cityName?: string }; diagnostics?: { searchCount?: number; idsReceived?: number; detailsReceived?: number; validListings?: number; detailsFailed?: number } }
       if (!response.ok || !payload.listings) throw new Error(payload.error || 'API недоступний')
       setListings(payload.listings)
-      setApiMessage(payload.listings.length ? `Офіційний API DIM.RIA · ${payload.location?.cityName || profile.city}` : `DIM.RIA: у місті «${payload.location?.cityName || profile.city}» нічого не знайдено`)
+      const diagnostics = payload.diagnostics
+      setApiMessage(payload.listings.length ? `Офіційний API DIM.RIA · ${payload.location?.cityName || profile.city}` : diagnostics && (diagnostics.idsReceived || 0) > 0 ? `DIM.RIA повернув ${diagnostics.idsReceived || 0} ID, але придатних деталей: ${diagnostics.validListings || 0}` : `DIM.RIA: за цими параметрами оголошень не знайдено`)
       setUpdated('щойно')
     } catch (error) { setApiMessage(error instanceof Error ? `${error.message}. Показано demo-дані.` : 'Показано demo-дані.'); setListings(demoListings) } finally { setLoading(false) }
   }

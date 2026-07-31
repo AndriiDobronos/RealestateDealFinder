@@ -166,17 +166,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const search = await getJson<{ items?: number[]; count?: number }>(searchUrl)
     const ids = (search.items ?? []).slice(0, MAX_DETAILS)
-    const details = await Promise.all(ids.map(async (id) => {
+    const detailResults = await Promise.allSettled(ids.map(async (id) => {
       const infoUrl = new URL(`${DIM_API}/dom/info/${id}`)
       infoUrl.searchParams.set('api_key', apiKey)
       infoUrl.searchParams.set('lang_id', '4')
       return getJson<DimListing>(infoUrl)
     }))
+    const details = detailResults.filter((result): result is PromiseFulfilledResult<DimListing> => result.status === 'fulfilled').map((result) => result.value)
     const propertyType = body.propertyType === 'new-build' ? 'new-build' : 'secondary'
     // The search endpoint already applies characteristic[1479] for rental listings.
     // Do not require that characteristic to be repeated by /dom/info: DIM.RIA may omit it there.
     const listings = details.map((item) => toListing(item, propertyType)).filter((item) => item.price > 0 && item.area > 0)
-    return res.status(200).json({ source: 'dim-ria', operation, location, total: search.count ?? listings.length, listings })
+    return res.status(200).json({ source: 'dim-ria', operation, location, total: search.count ?? listings.length, listings, diagnostics: { searchCount: search.count ?? 0, idsReceived: ids.length, detailsReceived: details.length, validListings: listings.length, detailsFailed: detailResults.length - details.length } })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Невідома помилка сервера'
     const status = message.includes('Не налаштовано') ? 503 : 502
