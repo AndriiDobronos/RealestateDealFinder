@@ -11,7 +11,6 @@ type SearchBody = {
   maxArea?: number
   budget?: number
   propertyType?: 'all' | 'secondary' | 'new-build'
-  renovation?: 'all' | 'with-renovation' | 'without-renovation'
 }
 
 type DimListing = {
@@ -101,13 +100,6 @@ function photoUrl(photo?: string): string {
   return normalized.startsWith('http') ? normalized : `https://cdn.riastatic.com/photos/${normalized}`
 }
 
-function classifyRenovation(condition = ''): 'with-renovation' | 'without-renovation' | 'unknown' {
-  const text = condition.toLocaleLowerCase('uk-UA')
-  if (/(без ремонту|після будівельників|від забудовника|під ремонт|потребує ремонту|чорнов)/.test(text)) return 'without-renovation'
-  if (/(ремонт|житловий стан|облаштован|дизайн|готовий)/.test(text)) return 'with-renovation'
-  return 'unknown'
-}
-
 function toListing(item: DimListing, propertyType: 'secondary' | 'new-build') {
   const id = String(item.realty_id ?? '')
   const price = asNumber(item.price_total ?? item.price)
@@ -125,7 +117,6 @@ function toListing(item: DimListing, propertyType: 'secondary' | 'new-build') {
     currency: item.currency_type || 'unknown',
     floor: `${item.floor ?? '?'} / ${item.floors_count ?? '?'}`,
     condition,
-    renovation: classifyRenovation(condition),
     ageDays: dateAge(item.publishing_date),
     verified: item.inspected === 1,
     image: photoUrl(mainPhoto),
@@ -173,7 +164,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return getJson<DimListing>(infoUrl)
     }))
     const propertyType = body.propertyType === 'new-build' ? 'new-build' : 'secondary'
-    const listings = details.map((item) => toListing(item, propertyType)).filter((item) => item.price > 0 && item.area > 0).filter((item) => body.renovation === 'all' || !body.renovation || item.renovation === body.renovation)
+    const listings = details.map((item) => toListing(item, propertyType)).filter((item) => item.price > 0 && item.area > 0)
     return res.status(200).json({ source: 'dim-ria', location, total: search.count ?? listings.length, listings })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Невідома помилка сервера'

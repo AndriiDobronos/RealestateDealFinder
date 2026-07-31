@@ -2,13 +2,6 @@ import { districtBenchmarks } from './data'
 import type { Listing, RankedListing, SearchProfile } from './types'
 const cityBenchmark = 33_326
 
-export function classifyRenovation(condition = ''): 'with-renovation' | 'without-renovation' | 'unknown' {
-  const text = condition.toLocaleLowerCase('uk-UA')
-  if (/(без ремонту|після будівельників|від забудовника|під ремонт|потребує ремонту|чорнов)/.test(text)) return 'without-renovation'
-  if (/(ремонт|житловий стан|облаштован|дизайн|готовий)/.test(text)) return 'with-renovation'
-  return 'unknown'
-}
-
 export function normalizeCurrency(value?: string): string {
   const currency = (value || 'unknown').trim().toUpperCase()
   if (currency === '$' || currency === 'USD' || currency === 'ДОЛ') return 'USD'
@@ -25,7 +18,7 @@ function median(values: number[]): number {
 }
 
 export function rankListings(listings: Listing[], profile: SearchProfile): RankedListing[] {
-  const candidates = listings.filter((listing) => listing.rooms === profile.rooms).filter((listing) => listing.area >= profile.minArea && listing.area <= profile.maxArea).filter((listing) => profile.propertyType === 'all' || listing.propertyType === profile.propertyType).filter((listing) => profile.renovation === 'all' || (listing.renovation || classifyRenovation(listing.condition)) === profile.renovation).filter((listing) => listing.price <= profile.budget)
+  const candidates = listings.filter((listing) => listing.rooms === profile.rooms).filter((listing) => listing.area >= profile.minArea && listing.area <= profile.maxArea).filter((listing) => profile.propertyType === 'all' || listing.propertyType === profile.propertyType).filter((listing) => listing.price <= profile.budget)
   const pricePerMeter = new Map(candidates.map((listing) => [listing.id, listing.price / listing.area]))
   const medianByCurrency = new Map<string, number>()
   for (const listing of candidates) {
