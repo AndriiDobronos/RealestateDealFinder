@@ -25,12 +25,13 @@ function App() {
     setLoading(true)
     try {
       const response = await fetch('/api/search', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(profile) })
-      const payload = await response.json() as { listings?: Listing[]; error?: string; location?: { cityName?: string }; diagnostics?: { searchCount?: number; idsReceived?: number; detailsReceived?: number; validListings?: number; detailsFailed?: number; currencyCounts?: Record<string, number> } }
+      const payload = await response.json() as { listings?: Listing[]; error?: string; location?: { cityName?: string }; diagnostics?: { searchCount?: number; idsReceived?: number; detailsReceived?: number; validListings?: number; detailsFailed?: number; currencyCounts?: Record<string, number>; operationTests?: Array<{ operationType: string; count: number }> } }
       if (!response.ok || !payload.listings) throw new Error(payload.error || 'API недоступний')
       setListings(payload.listings)
       const diagnostics = payload.diagnostics
       const rankedCount = rankListings(payload.listings, profile).length
-      setApiMessage(payload.listings.length && rankedCount ? `Офіційний API DIM.RIA · ${payload.location?.cityName || profile.city}` : payload.listings.length ? `DIM.RIA повернув ${payload.listings.length} об'єктів, але бюджет не збігається з валютою оголошень або результатів немає` : diagnostics && (diagnostics.idsReceived || 0) > 0 ? `DIM.RIA повернув ${diagnostics.idsReceived || 0} ID, але придатних деталей: ${diagnostics.validListings || 0}` : `DIM.RIA: за цими параметрами оголошень не знайдено`)
+      const operationTests = diagnostics?.operationTests?.map((test) => `${test.operationType}: ${test.count}`).join(', ')
+      setApiMessage(payload.listings.length && rankedCount ? `Офіційний API DIM.RIA · ${payload.location?.cityName || profile.city}` : payload.listings.length ? `DIM.RIA повернув ${payload.listings.length} об'єктів, але бюджет не збігається з валютою оголошень або результатів немає` : diagnostics && (diagnostics.idsReceived || 0) > 0 ? `DIM.RIA повернув ${diagnostics.idsReceived || 0} ID, але придатних деталей: ${diagnostics.validListings || 0}` : operationTests ? `Перевірка operation_type: ${operationTests}` : `DIM.RIA: за цими параметрами оголошень не знайдено`)
       setUpdated('щойно')
     } catch (error) { setApiMessage(error instanceof Error ? `${error.message}. Показано demo-дані.` : 'Показано demo-дані.'); setListings(demoListings) } finally { setLoading(false) }
   }
