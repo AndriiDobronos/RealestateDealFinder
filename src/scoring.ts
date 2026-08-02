@@ -31,7 +31,7 @@ export function rankListings(listings: Listing[], profile: SearchProfile): Ranke
     const current = pricePerMeter.get(listing.id) || 0
     const reference = medianByCurrency.get(normalizeCurrency(listing.currency)) || 0
     // A price below one seventh of comparable listings is treated as a likely currency/data-entry error.
-    return reference === 0 || current >= reference / 7
+    return profile.operation === 'rent' || reference === 0 || current >= reference / 7
   }).map((listing) => {
     const pricePerMeter = listing.price / listing.area
     const currency = normalizeCurrency(listing.currency)

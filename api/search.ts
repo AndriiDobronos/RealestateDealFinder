@@ -158,11 +158,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     searchUrl.searchParams.set('operation_type', operation === 'rent' ? '3' : '1')
     searchUrl.searchParams.set('state_id', location.stateId)
     searchUrl.searchParams.set('city_id', location.cityId)
-    if (operation === 'sale') {
-      searchUrl.searchParams.set('characteristic[209][from]', String(rooms))
-      searchUrl.searchParams.set('characteristic[209][to]', String(rooms))
-      searchUrl.searchParams.set('characteristic[214][from]', String(minArea))
-      searchUrl.searchParams.set('characteristic[214][to]', String(maxArea))
+    searchUrl.searchParams.set('characteristic[209][from]', String(rooms))
+    searchUrl.searchParams.set('characteristic[209][to]', String(rooms))
+    searchUrl.searchParams.set('characteristic[214][from]', String(minArea))
+    searchUrl.searchParams.set('characteristic[214][to]', String(maxArea))
+    if (operation === 'rent') {
+      searchUrl.searchParams.set('characteristic[235][from]', '1')
+      searchUrl.searchParams.set('characteristic[235][to]', String(Math.max(1, asNumber(body.budget, 100000))))
+      searchUrl.searchParams.set('characteristic[246]', '240')
+      searchUrl.searchParams.set('sort', 'price_asc')
     }
 
     const search = await getJson<{ items?: number[]; count?: number }>(searchUrl)

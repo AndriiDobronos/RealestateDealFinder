@@ -20,7 +20,7 @@ function App() {
   const best = results[0]
   const cheapest = best ? results.filter((item) => item.id !== best.id && normalizeCurrency(item.currency) === normalizeCurrency(best.currency)).sort((a, b) => a.price - b.price)[0] : undefined
   const alternatives = results.filter((item) => item.id !== best?.id && item.id !== cheapest?.id)
-  const update = <K extends keyof SearchProfile>(key: K, value: SearchProfile[K]) => setProfile((current) => current.operation === 'rent' && ['rooms', 'minArea', 'maxArea', 'propertyType', 'renovation'].includes(String(key)) ? current : ({ ...current, [key]: value }))
+  const update = <K extends keyof SearchProfile>(key: K, value: SearchProfile[K]) => setProfile((current) => key === 'operation' && value === 'rent' ? { ...current, operation: 'rent', rooms: 1, minArea: 1, maxArea: 500, propertyType: 'all', renovation: 'all', budget: 100_000 } : key === 'operation' && value === 'sale' ? { ...current, operation: 'sale', rooms: 2, minArea: 45, maxArea: 65, propertyType: 'all', renovation: 'all', budget: 2_500_000 } : ({ ...current, [key]: value }))
   const runSearch = async () => {
     setLoading(true)
     try {
