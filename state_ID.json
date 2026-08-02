@@ -238,5 +238,16 @@
     "center_declension": "Чернігова",
     "region_name": "Чернігів",
     "translit": "chernigovskaya"
+  },
+  {
+    "lang_id": 4,
+    "stateID": 3,
+    "cityID": 425,
+    "name": "Бережани",
+    "eng_name": "berezhany",
+    "declension": "у Бережанах",
+    "center_declension": "Бережан",
+    "region_name": "Бережани",
+    "translit": "berezhany"
   }
 ]

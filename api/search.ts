@@ -12,7 +12,7 @@ type SearchBody = {
   maxArea?: number
   budget?: number
   propertyType?: 'all' | 'secondary' | 'new-build'
-  renovation?: 'all' | 'with-renovation'
+  renovation?: 'all' | 'with-renovation' | 'without-renovation'
 }
 
 type DimListing = {
@@ -33,6 +33,7 @@ type DimListing = {
   floor?: number
   floors_count?: number
   description?: string
+  description_uk?: string
   publishing_date?: string
   inspected?: number
   main_photo?: string
@@ -42,6 +43,7 @@ type DimListing = {
 
 type StateRecord = {
   stateID: number
+  cityID?: number
   name?: string
   region_name?: string
   center_declension?: string
@@ -88,8 +90,24 @@ function resolveLocation(city?: string): { stateId: string; cityId: string; city
     const available = (stateCatalog as StateRecord[]).map((item) => item.region_name).filter(Boolean).join(', ')
     throw new Error(`Місто «${city || ''}» не знайдено у state_ID.json. Доступні міста: ${available}`)
   }
-  const id = String(match.stateID)
-  return { stateId: id, cityId: id, cityName: match.region_name || city || '' }
+  const stateId = String(match.stateID)
+  // Обласні центри DIM.RIA мають однакові state_id і city_id.
+  // Для Бережан діє окреме правило: Тернопільська область (3), місто (425).
+  const specialCityIds: Record<string, string> = {
+    [`3:\u0431\u0435\u0440\u0435\u0436\u0430\u043d\u0438`]: '425',
+  }
+  const cityId = specialCityIds[`${stateId}:${target}`] ?? stateId
+  return { stateId, cityId, cityName: match.region_name || city || '' }
+}
+
+function classifyRenovation(item: DimListing): 'with-renovation' | 'without-renovation' | 'unknown' {
+  if (asNumber(item.characteristics_values?.['1479']) > 0) return 'with-renovation'
+  const text = [item.advert_title, item.description_uk, item.description].filter(Boolean).join(' ').toLocaleLowerCase('uk-UA')
+  const without = [/без\s+ремонт/, /без\s+оздоблення/, /під\s+ремонт/, /потребує\s+(ремонту|оздоблення)/, /після\s+будівельників/, /чорнов/, /під\s+оздоблення/]
+  if (without.some((pattern) => pattern.test(text))) return 'without-renovation'
+  const withRepair = [/з\s+ремонт/, /євроремонт/, /капітальн\w*\s+ремонт/, /дизайнерськ\w*\s+ремонт/, /житлов\w*\s+стан/, /готов\w*\s+до\s+заселення/]
+  if (withRepair.some((pattern) => pattern.test(text))) return 'with-renovation'
+  return 'unknown'
 }
 
 function dateAge(date?: string): number {
@@ -111,7 +129,7 @@ function toListing(item: DimListing, propertyType: 'secondary' | 'new-build') {
   const area = asNumber(item.total_square_meters ?? item.area)
   const mainPhoto = item.main_photo ?? Object.values(item.photos ?? {})[0]?.file
   const condition = item.description?.slice(0, 300) || 'Опис відсутній'
-  const renovation = Number(item.characteristics_values?.['1479']) > 0 ? 'with-renovation' : 'unknown'
+  const renovation = classifyRenovation(item)
   return {
     id: `dim-${id}`,
     title: item.advert_title || `${item.rooms_count ?? ''}-кімнатна квартира`,
@@ -167,6 +185,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       searchUrl.searchParams.set('characteristic[235][to]', String(Math.max(1, asNumber(body.budget, 100000))))
       searchUrl.searchParams.set('characteristic[246]', '240')
       searchUrl.searchParams.set('sort', 'price_asc')
+      if (body.renovation === 'with-renovation') searchUrl.searchParams.set('characteristic[1479]', '1479')
     }
 
     const search = await getJson<{ items?: number[]; count?: number }>(searchUrl)
@@ -179,9 +198,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }))
     const details = detailResults.filter((result): result is PromiseFulfilledResult<DimListing> => result.status === 'fulfilled').map((result) => result.value)
     const propertyType = body.propertyType === 'new-build' ? 'new-build' : 'secondary'
-    // The search endpoint already applies characteristic[1479] for rental listings.
-    // Do not require that characteristic to be repeated by /dom/info: DIM.RIA may omit it there.
-    const listings = details.map((item) => toListing(item, propertyType)).filter((item) => item.price > 0 && item.area > 0)
+    const listings = details.map((item) => toListing(item, propertyType)).filter((item) => item.price > 0 && item.area > 0).filter((item) => body.renovation === 'all' || !body.renovation || item.renovation === body.renovation || (operation === 'rent' && body.renovation === 'with-renovation'))
     const currencyCounts = listings.reduce<Record<string, number>>((counts, listing) => { const currency = listing.currency || 'unknown'; counts[currency] = (counts[currency] || 0) + 1; return counts }, {})
     return res.status(200).json({ source: 'dim-ria', operation, location, total: search.count ?? listings.length, listings, diagnostics: { searchCount: search.count ?? 0, idsReceived: ids.length, detailsReceived: details.length, validListings: listings.length, detailsFailed: detailResults.length - details.length, currencyCounts } })
   } catch (error) {
