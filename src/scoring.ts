@@ -19,7 +19,9 @@ function median(values: number[]): number {
 }
 
 export function rankListings(listings: Listing[], profile: SearchProfile): RankedListing[] {
-  const candidates = listings.filter((listing) => profile.operation === 'rent' || listing.rooms === profile.rooms).filter((listing) => profile.operation === 'rent' || (listing.area >= profile.minArea && listing.area <= profile.maxArea)).filter((listing) => profile.operation === 'rent' || profile.propertyType === 'all' || listing.propertyType === profile.propertyType).filter((listing) => profile.renovation === 'all' || (profile.operation === 'rent' && profile.renovation === 'with-renovation') || listing.renovation === profile.renovation).filter((listing) => profile.operation !== 'rent' || normalizeCurrency(listing.currency) === 'UAH').filter((listing) => listing.price <= profile.budget)
+  const category = profile.category ?? 'apartment'
+  const useHouseRoomFilter = category === 'house'
+  const candidates = listings.filter((listing) => useHouseRoomFilter ? listing.rooms === profile.rooms : profile.operation === 'rent' || listing.rooms === profile.rooms).filter((listing) => useHouseRoomFilter ? (listing.area >= profile.minArea && listing.area <= profile.maxArea) : profile.operation === 'rent' || (listing.area >= profile.minArea && listing.area <= profile.maxArea)).filter((listing) => !listing.category || listing.category === category).filter((listing) => profile.operation === 'rent' || profile.propertyType === 'all' || listing.propertyType === profile.propertyType).filter((listing) => profile.renovation === 'all' || (profile.operation === 'rent' && profile.renovation === 'with-renovation') || listing.renovation === profile.renovation).filter((listing) => profile.operation !== 'rent' || normalizeCurrency(listing.currency) === 'UAH').filter((listing) => listing.price <= profile.budget)
   const pricePerMeter = new Map(candidates.map((listing) => [listing.id, listing.price / listing.area]))
   const medianByCurrency = new Map<string, number>()
   for (const listing of candidates) {

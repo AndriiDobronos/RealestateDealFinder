@@ -5,6 +5,7 @@ const DIM_API = 'https://developers.ria.com'
 const MAX_DETAILS = 20
 
 type SearchBody = {
+  category?: 'apartment' | 'house'
   operation?: 'sale' | 'rent'
   city?: string
   rooms?: number
@@ -123,7 +124,7 @@ function photoUrl(photo?: string): string {
   return normalized.startsWith('http') ? normalized : `https://cdn.riastatic.com/photos/${normalized}`
 }
 
-function toListing(item: DimListing, propertyType: 'secondary' | 'new-build') {
+function toListing(item: DimListing, propertyType: 'secondary' | 'new-build', category: 'apartment' | 'house') {
   const id = String(item.realty_id ?? '')
   const price = asNumber(item.price_total ?? item.price ?? item.price_item)
   const area = asNumber(item.total_square_meters ?? item.area)
@@ -134,6 +135,7 @@ function toListing(item: DimListing, propertyType: 'secondary' | 'new-build') {
     id: `dim-${id}`,
     title: item.advert_title || `${item.rooms_count ?? ''}-кімнатна квартира`,
     district: item.district_name || 'Район не вказаний',
+    category,
     propertyType,
     rooms: asNumber(item.rooms_count ?? item.rooms),
     area,
@@ -171,15 +173,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const maxArea = Math.max(minArea, asNumber(body.maxArea, 500))
     const searchUrl = new URL(`${DIM_API}/dom/search`)
     searchUrl.searchParams.set('api_key', apiKey)
-    searchUrl.searchParams.set('category', '1')
-    searchUrl.searchParams.set('realty_type', '2')
+    const category = body.category === 'house' ? 'house' : 'apartment'
+    searchUrl.searchParams.set('category', category === 'house' ? '4' : '1')
+    searchUrl.searchParams.set('realty_type', category === 'house' ? '0' : '2')
     searchUrl.searchParams.set('operation_type', operation === 'rent' ? '3' : '1')
     searchUrl.searchParams.set('state_id', location.stateId)
     searchUrl.searchParams.set('city_id', location.cityId)
     searchUrl.searchParams.set('characteristic[209][from]', String(rooms))
     searchUrl.searchParams.set('characteristic[209][to]', String(rooms))
-    searchUrl.searchParams.set('characteristic[214][from]', String(minArea))
-    searchUrl.searchParams.set('characteristic[214][to]', String(maxArea))
+    const areaCharacteristic = category === 'house' ? '215' : '214'
+    searchUrl.searchParams.set(`characteristic[${areaCharacteristic}][from]`, String(minArea))
+    searchUrl.searchParams.set(`characteristic[${areaCharacteristic}][to]`, String(maxArea))
     if (operation === 'rent') {
       searchUrl.searchParams.set('characteristic[235][from]', '1')
       searchUrl.searchParams.set('characteristic[235][to]', String(Math.max(1, asNumber(body.budget, 100000))))
@@ -198,7 +202,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }))
     const details = detailResults.filter((result): result is PromiseFulfilledResult<DimListing> => result.status === 'fulfilled').map((result) => result.value)
     const propertyType = body.propertyType === 'new-build' ? 'new-build' : 'secondary'
-    const listings = details.map((item) => toListing(item, propertyType)).filter((item) => item.price > 0 && item.area > 0).filter((item) => body.renovation === 'all' || !body.renovation || item.renovation === body.renovation || (operation === 'rent' && body.renovation === 'with-renovation'))
+    const listings = details.map((item) => toListing(item, propertyType, category)).filter((item) => item.price > 0 && item.area > 0).filter((item) => body.renovation === 'all' || !body.renovation || item.renovation === body.renovation || (operation === 'rent' && body.renovation === 'with-renovation'))
     const currencyCounts = listings.reduce<Record<string, number>>((counts, listing) => { const currency = listing.currency || 'unknown'; counts[currency] = (counts[currency] || 0) + 1; return counts }, {})
     return res.status(200).json({ source: 'dim-ria', operation, location, total: search.count ?? listings.length, listings, diagnostics: { searchCount: search.count ?? 0, idsReceived: ids.length, detailsReceived: details.length, validListings: listings.length, detailsFailed: detailResults.length - details.length, currencyCounts } })
   } catch (error) {
